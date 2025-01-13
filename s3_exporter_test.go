@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -179,7 +180,7 @@ func TestProbeHandler(t *testing.T) {
 	for _, c := range testCases {
 		rr, err := probe(c.Bucket, c.Prefix, c.Delimiter)
 		if err != nil {
-			t.Error("%s", err.Error())
+			t.Errorf("%s", err.Error())
 		}
 
 		c.testBody(rr.Body.String(), t)
@@ -199,13 +200,13 @@ func (m *mockS3Client) ListObjectsV2(input *s3.ListObjectsV2Input) (*s3.ListObje
 // Repeatable probe function
 func probe(bucket, prefix, delimiter string) (rr *httptest.ResponseRecorder, err error) {
 	uri := "/probe?bucket=" + bucket
-	if len(prefix) > 0 {
+	if prefix != "" {
 		uri = uri + "&prefix=" + prefix
 	}
-	if len(delimiter) > 0 {
+	if delimiter != "" {
 		uri = uri + "&delimiter=" + delimiter
 	}
-	req, err := http.NewRequest(http.MethodGet, uri, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, uri, http.NoBody)
 	if err != nil {
 		return
 	}

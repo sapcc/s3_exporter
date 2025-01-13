@@ -114,10 +114,10 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			)
 			return
 		}
-		commonPrefixes = commonPrefixes + len(resp.CommonPrefixes)
+		commonPrefixes += len(resp.CommonPrefixes)
 		for _, item := range resp.Contents {
 			numberOfObjects++
-			totalSize = totalSize + *item.Size
+			totalSize += *item.Size
 			if item.LastModified.After(lastModified) {
 				lastModified = *item.LastModified
 				lastObjectSize = *item.Size
@@ -200,7 +200,7 @@ func discoveryHandler(w http.ResponseWriter, r *http.Request, svc s3iface.S3API)
 		return
 	}
 
-	targets := []discoveryTarget{}
+	var targets []discoveryTarget
 	for _, b := range result.Buckets {
 		name := aws.StringValue(b.Name)
 		if name != "" {
@@ -220,7 +220,10 @@ func discoveryHandler(w http.ResponseWriter, r *http.Request, svc s3iface.S3API)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(data)
+	_, err = w.Write(data)
+	if err != nil {
+		return
+	}
 }
 
 func init() {
@@ -265,15 +268,9 @@ func main() {
 	log.Infoln("Starting "+namespace+"_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
-	http.Handle(*metricsPath, promhttp.Handler())
-	http.HandleFunc(*probePath, func(w http.ResponseWriter, r *http.Request) {
-		probeHandler(w, r, svc)
-	})
-	http.HandleFunc(*discoveryPath, func(w http.ResponseWriter, r *http.Request) {
-		discoveryHandler(w, r, svc)
-	})
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`<html>
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		_, err := w.Write([]byte(`<html>
 						 <head><title>AWS S3 Exporter</title></head>
 						 <body>
 						 <h1>AWS S3 Exporter</h1>
@@ -282,8 +279,27 @@ func main() {
 						 <p><a href='` + *discoveryPath + `'>Service Discovery</a></p>
 						 </body>
 						 </html>`))
+		if err != nil {
+			return
+		}
 	})
 
+	mux.Handle(*metricsPath, promhttp.Handler())
+	mux.HandleFunc(*probePath, func(w http.ResponseWriter, r *http.Request) {
+		probeHandler(w, r, svc)
+	})
+	mux.HandleFunc(*discoveryPath, func(w http.ResponseWriter, r *http.Request) {
+		discoveryHandler(w, r, svc)
+	})
+
+	server := &http.Server{
+		Addr:         *listenAddress,
+		Handler:      mux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  15 * time.Second,
+	}
+
 	log.Infoln("Listening on", *listenAddress)
-	log.Fatal(http.ListenAndServe(*listenAddress, nil))
+	log.Fatal(server.ListenAndServe())
 }
