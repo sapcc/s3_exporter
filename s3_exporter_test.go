@@ -31,7 +31,7 @@ var (
 			},
 			ListObjectsV2Response: &s3.ListObjectsV2Output{
 				Contents: []*s3.Object{
-					&s3.Object{
+					{
 						Key:          String("one"),
 						LastModified: Time(time.Date(2019, time.June, 13, 21, 0, 0, 0, time.UTC)),
 						Size:         Int64(1234),
@@ -81,22 +81,22 @@ var (
 			},
 			ListObjectsV2Response: &s3.ListObjectsV2Output{
 				Contents: []*s3.Object{
-					&s3.Object{
+					{
 						Key:          String("multiple0"),
 						LastModified: Time(time.Date(2019, time.June, 13, 21, 0, 0, 0, time.UTC)),
 						Size:         Int64(1234),
 					},
-					&s3.Object{
+					{
 						Key:          String("multiple1"),
 						LastModified: Time(time.Date(2019, time.July, 14, 22, 0, 0, 0, time.UTC)),
 						Size:         Int64(2345),
 					},
-					&s3.Object{
+					{
 						Key:          String("multiple2"),
 						LastModified: Time(time.Date(2019, time.August, 15, 23, 0, 0, 0, time.UTC)),
 						Size:         Int64(3456),
 					},
-					&s3.Object{
+					{
 						Key:          String("multiple/0"),
 						LastModified: Time(time.Date(2019, time.September, 16, 00, 0, 0, 0, time.UTC)),
 						Size:         Int64(4567),
@@ -156,7 +156,7 @@ func (tc *s3ExporterTestCase) testBody(body string, t *testing.T) {
 	for _, l := range tc.ExpectedOutputLines {
 		ok := strings.Contains(body, l)
 		if !ok {
-			t.Errorf("expected " + l)
+			t.Errorf("%s", "expected "+l)
 		}
 	}
 }
@@ -179,7 +179,7 @@ func TestProbeHandler(t *testing.T) {
 	for _, c := range testCases {
 		rr, err := probe(c.Bucket, c.Prefix, c.Delimiter)
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Error("%s", err.Error())
 		}
 
 		c.testBody(rr.Body.String(), t)
@@ -205,7 +205,7 @@ func probe(bucket, prefix, delimiter string) (rr *httptest.ResponseRecorder, err
 	if len(delimiter) > 0 {
 		uri = uri + "&delimiter=" + delimiter
 	}
-	req, err := http.NewRequest("GET", uri, nil)
+	req, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
 		return
 	}

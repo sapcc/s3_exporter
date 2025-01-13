@@ -1,0 +1,41 @@
+# Configuration file for <https://github.com/sapcc/go-makefile-maker>
+
+metadata:
+  url: https://github.com/sapcc/s3_exporter
+
+dockerfile:
+  enabled: false
+
+golang:
+  enableVendoring: false
+  setGoModVersion: true
+
+golangciLint:
+  createConfig: true
+
+githubWorkflow:
+  ci:
+    enabled: true
+    coveralls: true
+    ignorePaths:
+      - "**.md" # all Markdown files
+  license:
+    enabled: false
+  securityChecks:
+    enabled: true
+  pushContainerToGhcr:
+    enabled: true
+    platforms: "linux/amd64"
+    tagStrategy:
+      - edge
+      - latest
+      - semver
+      - sha
+
+renovate:
+  enabled: true
+  assignees:
+    - defo89
+    - SchwarzM
+    - xsen84
+    - goerangudat
