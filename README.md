@@ -4,6 +4,10 @@ This exporter provides metrics for AWS S3 bucket objects by querying the API wit
 
 I find it useful for ensuring that backup jobs and batch uploads are functioning by comparing the growth in size/number of objects over time, or comparing the last modified date to an expected value.
 
+> [!NOTE]
+> This is a fork of [ribbybibby/s3_exporter](https://github.com/ribbybibby/s3_exporter)
+> to keep up with dependency updates.
+
 ## Building
 
 ```
