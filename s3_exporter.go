@@ -2,14 +2,17 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
-	"github.com/prometheus/common/version"
+	commonversion "github.com/prometheus/common/version"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -108,7 +111,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	for {
 		resp, err := e.svc.ListObjectsV2(query)
 		if err != nil {
-			log.Errorln(err)
+			logrus.Errorln(err)
 			ch <- prometheus.MustNewConstMetric(
 				s3ListSuccess, prometheus.GaugeValue, 0, e.bucket, e.prefix,
 			)
@@ -195,7 +198,7 @@ type discoveryTarget struct {
 func discoveryHandler(w http.ResponseWriter, r *http.Request, svc s3iface.S3API) {
 	result, err := svc.ListBuckets(&s3.ListBucketsInput{})
 	if err != nil {
-		log.Errorln(err)
+		logrus.Errorln(err)
 		http.Error(w, "error listing buckets", http.StatusInternalServerError)
 		return
 	}
@@ -242,8 +245,9 @@ func main() {
 		forcePathStyle = app.Flag("s3.force-path-style", "Custom force path style").Bool()
 	)
 
-	log.AddFlags(app)
-	app.Version(version.Print(namespace + "_exporter"))
+	    kingpin.MustParse(app.Parse(os.Args[1:]))
+
+	app.Version(commonversion.Print(namespace + "_exporter"))
 	app.HelpFlag.Short('h')
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
@@ -252,7 +256,7 @@ func main() {
 
 	sess, err = session.NewSession()
 	if err != nil {
-		log.Errorln("Error creating sessions ", err)
+		logrus.Errorln("Error creating sessions ", err)
 	}
 
 	cfg := aws.NewConfig()
@@ -265,8 +269,8 @@ func main() {
 
 	svc := s3.New(sess, cfg)
 
-	log.Infoln("Starting "+namespace+"_exporter", version.Info())
-	log.Infoln("Build context", version.BuildContext())
+	logrus.Infoln("Starting "+namespace+"_exporter", commonversion.Info())
+	logrus.Infoln("Build context", commonversion.BuildContext())
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -300,6 +304,6 @@ func main() {
 		IdleTimeout:  15 * time.Second,
 	}
 
-	log.Infoln("Listening on", *listenAddress)
+	logrus.Infoln("Listening on", *listenAddress)
 	log.Fatal(server.ListenAndServe())
 }

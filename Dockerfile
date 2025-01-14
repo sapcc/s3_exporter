@@ -1,12 +1,11 @@
-FROM golang:1.15-buster AS build
+FROM golang:1.23-alpine3.21 AS build
 
 ADD . /tmp/s3_exporter
 
 RUN cd /tmp/s3_exporter && \
     echo "s3:*:100:s3" > group && \
     echo "s3:*:100:100::/:/s3_exporter" > passwd && \
-    CGO_ENABLED=0 go build -v \
-    		-o s3_exporter .
+    CGO_ENABLED=0 go build -o s3_exporter
 
 FROM scratch
 
