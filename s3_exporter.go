@@ -245,7 +245,7 @@ func main() {
 		forcePathStyle = app.Flag("s3.force-path-style", "Custom force path style").Bool()
 	)
 
-	    kingpin.MustParse(app.Parse(os.Args[1:]))
+	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	app.Version(commonversion.Print(namespace + "_exporter"))
 	app.HelpFlag.Short('h')
