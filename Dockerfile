@@ -8,6 +8,7 @@ RUN cd /tmp/s3_exporter && \
     CGO_ENABLED=0 go build -o s3_exporter
 
 FROM scratch
+LABEL source_repository="https://github.com/sapcc/s3_exporter"
 
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /tmp/s3_exporter/group \

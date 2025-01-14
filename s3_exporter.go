@@ -2,12 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors/version"
@@ -111,7 +110,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	for {
 		resp, err := e.svc.ListObjectsV2(query)
 		if err != nil {
-			logrus.Errorln(err)
+			log.Errorln(err)
 			ch <- prometheus.MustNewConstMetric(
 				s3ListSuccess, prometheus.GaugeValue, 0, e.bucket, e.prefix,
 			)
@@ -186,7 +185,12 @@ func probeHandler(w http.ResponseWriter, r *http.Request, svc s3iface.S3API) {
 	registry.MustRegister(exporter)
 
 	// Serve
-	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+	l := log.New()
+	l.Level = log.ErrorLevel
+	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{
+		ErrorLog:      l,
+		ErrorHandling: promhttp.ContinueOnError,
+	})
 	h.ServeHTTP(w, r)
 }
 
@@ -198,7 +202,7 @@ type discoveryTarget struct {
 func discoveryHandler(w http.ResponseWriter, r *http.Request, svc s3iface.S3API) {
 	result, err := svc.ListBuckets(&s3.ListBucketsInput{})
 	if err != nil {
-		logrus.Errorln(err)
+		log.Errorln(err)
 		http.Error(w, "error listing buckets", http.StatusInternalServerError)
 		return
 	}
@@ -256,7 +260,7 @@ func main() {
 
 	sess, err = session.NewSession()
 	if err != nil {
-		logrus.Errorln("Error creating sessions ", err)
+		log.Errorln("Error creating sessions ", err)
 	}
 
 	cfg := aws.NewConfig()
@@ -269,41 +273,31 @@ func main() {
 
 	svc := s3.New(sess, cfg)
 
-	logrus.Infoln("Starting "+namespace+"_exporter", commonversion.Info())
-	logrus.Infoln("Build context", commonversion.BuildContext())
+	log.Infoln("Starting "+namespace+"_exporter", commonversion.Info())
+	log.Infoln("Build context", commonversion.BuildContext())
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		_, err := w.Write([]byte(`<html>
-						 <head><title>AWS S3 Exporter</title></head>
-						 <body>
-						 <h1>AWS S3 Exporter</h1>
-						 <p><a href="` + *probePath + `?bucket=BUCKET&prefix=PREFIX">Query metrics for objects in BUCKET that match PREFIX</a></p>
-						 <p><a href='` + *metricsPath + `'>Metrics</a></p>
-						 <p><a href='` + *discoveryPath + `'>Service Discovery</a></p>
-						 </body>
-						 </html>`))
+	http.Handle(*metricsPath, promhttp.Handler())
+	http.HandleFunc(*probePath, func(w http.ResponseWriter, r *http.Request) {
+		probeHandler(w, r, svc)
+	})
+	http.HandleFunc(*discoveryPath, func(w http.ResponseWriter, r *http.Request) {
+		discoveryHandler(w, r, svc)
+	})
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		_, err = w.Write([]byte(`<html>
+							 <head><title>AWS S3 Exporter</title></head>
+							 <body>
+							 <h1>AWS S3 Exporter</h1>
+							 <p><a href="` + *probePath + `?bucket=BUCKET&prefix=PREFIX">Query metrics for objects in BUCKET that match PREFIX</a></p>
+							 <p><a href='` + *metricsPath + `'>Metrics</a></p>
+							 <p><a href='` + *discoveryPath + `'>Service Discovery</a></p>
+							 </body>
+							 </html>`))
 		if err != nil {
-			return
+			log.Errorln(err)
 		}
 	})
 
-	mux.Handle(*metricsPath, promhttp.Handler())
-	mux.HandleFunc(*probePath, func(w http.ResponseWriter, r *http.Request) {
-		probeHandler(w, r, svc)
-	})
-	mux.HandleFunc(*discoveryPath, func(w http.ResponseWriter, r *http.Request) {
-		discoveryHandler(w, r, svc)
-	})
-
-	server := &http.Server{
-		Addr:         *listenAddress,
-		Handler:      mux,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  15 * time.Second,
-	}
-
-	logrus.Infoln("Listening on", *listenAddress)
-	log.Fatal(server.ListenAndServe())
+	log.Infoln("Listening on", *listenAddress)
+	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }
