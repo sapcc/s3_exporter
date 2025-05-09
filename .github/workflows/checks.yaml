@@ -48,3 +48,5 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           ignore: importas
           reporter: github-check
+      - name: REUSE Compliance Check
+        uses: fsfe/reuse-action@v5
