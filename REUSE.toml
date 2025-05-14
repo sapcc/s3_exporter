@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: SAP SE
 # SPDX-License-Identifier: Apache-2.0
 version = 1
+SPDX-PackageName = "s3_exporter"
+SPDX-PackageDownloadLocation = "https://github.com/sapcc/s3_exporter"
 
 [[annotations]]
 path = [
