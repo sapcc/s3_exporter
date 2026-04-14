@@ -44,8 +44,6 @@ jobs:
         uses: crate-ci/typos@v1
         env:
           CLICOLOR: "1"
-      - name: Delete typos binary
-        run: rm typos
       - name: REUSE Compliance Check
         uses: fsfe/reuse-action@v6
       - name: Install govulncheck
